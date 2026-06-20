@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>القرآن الكريم — محمد سايد | ورش</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 40px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding-top: 12px;
+  }
+  .header h1 {
+    font-size: 1.3rem;
+    color: #c9a84c;
+    letter-spacing: 0.03em;
+  }
+  .header p {
+    font-size: 0.85rem;
+    color: #8b949e;
+    margin-top: 4px;
+  }
+
+  /* ── Now Playing Card ── */
+  .now-playing {
+    background: linear-gradient(135deg, #1c2128 0%, #161b22 100%);
+    border: 1px solid #30363d;
+    border-radius: 18px;
+    width: 100%;
+    max-width: 480px;
+    padding: 24px 20px 20px;
+    margin-bottom: 20px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .hizb-badge {
+    display: inline-block;
+    background: #c9a84c22;
+    border: 1px solid #c9a84c55;
+    color: #c9a84c;
+    font-size: 0.75rem;
+    padding: 3px 12px;
+    border-radius: 99px;
+    margin-bottom: 10px;
+  }
+
+  .hizb-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #e6edf3;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .hizb-fatiha {
+    font-size: 0.9rem;
+    color: #8b949e;
+    margin-bottom: 18px;
+  }
+
+  /* progress bar */
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    direction: ltr;
+  }
+  .progress-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: #21262d;
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #c9a84c, #e8c876);
+    border-radius: 99px;
+    transition: width 0.4s ease;
+  }
+  .progress-label {
+    font-size: 0.75rem;
+    color: #c9a84c;
+    white-space: nowrap;
+    min-width: 40px;
+    text-align: right;
+  }
+
+  /* controls */
+  .controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+  }
+  .btn {
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 50%;
+    color: #c9a84c;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:active { transform: scale(0.92); background: #2d333b; }
+  .btn-sm { width: 44px; height: 44px; font-size: 1.1rem; }
+  .btn-lg { width: 60px; height: 60px; font-size: 1.5rem; background: #c9a84c; color: #0d1117; border-color: #c9a84c; }
+  .btn-lg:active { background: #e8c876; }
+
+  .loop-badge {
+    font-size: 0.72rem;
+    color: #c9a84c;
+    margin-top: 10px;
+    opacity: 0.7;
+  }
+
+  /* ── YouTube embed (hidden) ── */
+  #yt-frame {
+    position: fixed;
+    top: -9999px;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+  }
+
+  /* ── Playlist ── */
+  .playlist {
+    width: 100%;
+    max-width: 480px;
+  }
+  .playlist-header {
+    font-size: 0.8rem;
+    color: #8b949e;
+    margin-bottom: 10px;
+    padding-right: 4px;
+  }
+  .hizb-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    margin-bottom: 4px;
+  }
+  .hizb-item:active,
+  .hizb-item:hover { background: #1c2128; }
+  .hizb-item.active { background: #c9a84c18; border: 1px solid #c9a84c33; }
+  .hizb-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #21262d;
+    color: #8b949e;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .hizb-item.active .hizb-num { background: #c9a84c; color: #0d1117; font-weight: 700; }
+  .hizb-item.done .hizb-num { background: #1f6feb33; color: #58a6ff; }
+  .hizb-info { flex: 1; min-width: 0; }
+  .hizb-name { font-size: 0.92rem; color: #e6edf3; }
+  .hizb-item.active .hizb-name { color: #c9a84c; font-weight: 600; }
+  .hizb-sub  { font-size: 0.75rem; color: #8b949e; margin-top: 2px; }
+  .eq-icon { font-size: 1rem; color: #c9a84c; flex-shrink: 0; }
+
+  .saved-pos {
+    background: #1f6feb18;
+    border: 1px solid #1f6feb33;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    color: #58a6ff;
+    display: none;
+    cursor: pointer;
+  }
+  .saved-pos span { color: #8b949e; display: block; font-size: 0.75rem; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🕌 القرآن الكريم</h1>
+  <p>القارئ: محمد سايد &nbsp;·&nbsp; رواية ورش عن نافع</p>
+</div>
+
+<!-- Saved position banner -->
+<div class="saved-pos" id="resume-banner" onclick="resumeFromSaved()">
+  ↩ استئناف من آخر موضع: <strong id="resume-title"></strong>
+  <span id="resume-time"></span>
+</div>
+
+<!-- Now Playing -->
+<div class="now-playing">
+  <div class="hizb-badge" id="badge">الحزب 1 / 19</div>
+  <div class="hizb-title" id="now-title">الحزب 1</div>
+  <div class="hizb-fatiha" id="now-fatiha">البقرة</div>
+
+  <div class="progress-row">
+    <div class="progress-label" id="prog-label">1 / 19</div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="prog-fill" style="width:5.26%"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-sm" onclick="prevHizb()" title="السابق">⏮</button>
+    <button class="btn btn-lg" id="play-btn" onclick="togglePlay()">▶</button>
+    <button class="btn btn-sm" onclick="nextHizb()" title="التالي">⏭</button>
+  </div>
+  <div class="loop-icon">🔁</div>
+  <div class="loop-badge">دورة مستمرة تلقائياً</div>
+</div>
+
+<!-- Playlist -->
+<div class="playlist">
+  <div class="playlist-header">قائمة التشغيل</div>
+  <div id="playlist-items"></div>
+</div>
+
+<!-- Hidden YouTube player -->
+<div id="yt-frame"></div>
+
+<script>
+// ── Data ─────────────────────────────────────────────────────────────────────
+const AHZAB = [
+  { n:1,  id:"xLa0DA2U4DA", title:"الحزب 1",  sub:"البقرة" },
+  { n:2,  id:"KHVkFM5pE94", title:"الحزب 2",  sub:"وإذا لقوا" },
+  { n:3,  id:"7JO0D8T9Ir4", title:"الحزب 3",  sub:"سيقول السفهاء" },
+  { n:4,  id:"xb5Ncsu9_nk", title:"الحزب 4",  sub:"واذكروا الله" },
+  { n:5,  id:"20gHKUjWMtk", title:"الحزب 5",  sub:"تلك الرسل" },
+  { n:6,  id:"XPdBy16KGgc", title:"الحزب 6",  sub:"قل أونبئكم" },
+  { n:7,  id:"cA3DFI_ikbI", title:"الحزب 7",  sub:"لن تنالوا" },
+  { n:8,  id:"5EbUypVjHdY", title:"الحزب 8",  sub:"يستبشرون" },
+  { n:9,  id:"UGlEzNUJ9tA", title:"الحزب 9",  sub:"والمحصنات" },
+  { n:10, id:"MT0O0XmophE", title:"الحزب 10", sub:"الله لا إله إلا هو" },
+  { n:11, id:"1X-4rBccPGI", title:"الحزب 11", sub:"لا يحب الله الجهر" },
+  { n:12, id:"b2gIsUjRLBA", title:"الحزب 12", sub:"قال رجلان" },
+  { n:13, id:"hQOkpnDWsKI", title:"الحزب 13", sub:"لتجدن" },
+  { n:14, id:"m4A1HKMQjOE", title:"الحزب 14", sub:"إنما يستجيب" },
+  { n:15, id:"PuqRD6MCcNA", title:"الحزب 15", sub:"ولو أننا نزّلنا" },
+  { n:16, id:"BydTJU_99y0", title:"الحزب 16", sub:"فما كان دعواهم" },
+  { n:17, id:"5XrsLG4v0ks", title:"الحزب 17", sub:"قال الملأ" },
+  { n:18, id:"sdHOPRHV55c", title:"الحزب 18", sub:"وإذ نتقنا" },
+  { n:19, id:"xy91DJ4eBic", title:"الحزب 19", sub:"واعلموا أنما غنمتم" },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentIdx = 0;
+let isPlaying  = false;
+let player     = null;
+let apiReady   = false;
+let startedAt  = null;
+
+// ── Persist position ──────────────────────────────────────────────────────────
+function savePos(idx) {
+  const entry = { idx, title: AHZAB[idx].title, sub: AHZAB[idx].sub, ts: new Date().toISOString() };
+  localStorage.setItem('quran_pos', JSON.stringify(entry));
+}
+function loadPos() {
+  try { return JSON.parse(localStorage.getItem('quran_pos')); } catch(e) { return null; }
+}
+
+// ── Build playlist ────────────────────────────────────────────────────────────
+function buildPlaylist() {
+  const container = document.getElementById('playlist-items');
+  container.innerHTML = '';
+  AHZAB.forEach((h, i) => {
+    const div = document.createElement('div');
+    div.className = 'hizb-item' + (i === currentIdx ? ' active' : '');
+    div.id = 'item-' + i;
+    div.onclick = () => jumpTo(i);
+    div.innerHTML = `
+      <div class="hizb-num">${h.n}</div>
+      <div class="hizb-info">
+        <div class="hizb-name">${h.title}</div>
+        <div class="hizb-sub">${h.sub}</div>
+      </div>
+      ${i === currentIdx ? '<div class="eq-icon">♪</div>' : ''}
+    `;
+    container.appendChild(div);
+  });
+}
+
+// ── Update UI ─────────────────────────────────────────────────────────────────
+function updateNowPlaying() {
+  const h = AHZAB[currentIdx];
+  document.getElementById('badge').textContent = `الحزب ${h.n} / 19`;
+  document.getElementById('now-title').textContent = h.title;
+  document.getElementById('now-fatiha').textContent = h.sub;
+  document.getElementById('prog-label').textContent = `${h.n} / 19`;
+  document.getElementById('prog-fill').style.width = ((currentIdx + 1) / AHZAB.length * 100).toFixed(2) + '%';
+  document.getElementById('play-btn').textContent = isPlaying ? '⏸' : '▶';
+
+  // Update playlist highlight
+  document.querySelectorAll('.hizb-item').forEach((el, i) => {
+    el.className = 'hizb-item' + (i === currentIdx ? ' active' : '');
+    el.innerHTML = `
+      <div class="hizb-num">${AHZAB[i].n}</div>
+      <div class="hizb-info">
+        <div class="hizb-name">${AHZAB[i].title}</div>
+        <div class="hizb-sub">${AHZAB[i].sub}</div>
+      </div>
+      ${i === currentIdx ? '<div class="eq-icon">♪</div>' : ''}
+    `;
+  });
+
+  // Scroll active item into view
+  const active = document.getElementById('item-' + currentIdx);
+  if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ── YouTube IFrame API ────────────────────────────────────────────────────────
+function loadYTApi() {
+  if (window.YT && window.YT.Player) { initPlayer(); return; }
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+}
+
+window.onYouTubeIframeAPIReady = function() {
+  apiReady = true;
+  initPlayer();
+};
+
+function initPlayer() {
+  player = new YT.Player('yt-frame', {
+    height: '1', width: '1',
+    videoId: AHZAB[currentIdx].id,
+    playerVars: { autoplay: 0, controls: 0, rel: 0, playsinline: 1 },
+    events: {
+      onReady: onPlayerReady,
+      onStateChange: onStateChange
+    }
+  });
+}
+
+function onPlayerReady() {
+  // Ready — wait for user to press play
+}
+
+function onStateChange(e) {
+  // ENDED = 0
+  if (e.data === YT.PlayerState.ENDED) {
+    savePos(currentIdx);
+    currentIdx = (currentIdx + 1) % AHZAB.length;
+    updateNowPlaying();
+    player.loadVideoById(AHZAB[currentIdx].id);
+    isPlaying = true;
+    document.getElementById('play-btn').textContent = '⏸';
+  }
+  if (e.data === YT.PlayerState.PLAYING) {
+    isPlaying = true;
+    document.getElementById('play-btn').textContent = '⏸';
+  }
+  if (e.data === YT.PlayerState.PAUSED) {
+    isPlaying = false;
+    document.getElementById('play-btn').textContent = '▶';
+    savePos(currentIdx); // save on pause
+  }
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function togglePlay() {
+  if (!apiReady) { loadYTApi(); return; }
+  if (!player) return;
+  if (isPlaying) {
+    player.pauseVideo();
+  } else {
+    player.playVideo();
+    isPlaying = true;
+    document.getElementById('play-btn').textContent = '⏸';
+  }
+}
+
+function nextHizb() {
+  currentIdx = (currentIdx + 1) % AHZAB.length;
+  jumpTo(currentIdx);
+}
+
+function prevHizb() {
+  currentIdx = (currentIdx - 1 + AHZAB.length) % AHZAB.length;
+  jumpTo(currentIdx);
+}
+
+function jumpTo(idx) {
+  currentIdx = idx;
+  updateNowPlaying();
+  if (player && apiReady) {
+    player.loadVideoById(AHZAB[idx].id);
+    isPlaying = true;
+    document.getElementById('play-btn').textContent = '⏸';
+  } else {
+    loadYTApi();
+  }
+  savePos(idx);
+}
+
+function resumeFromSaved() {
+  const pos = loadPos();
+  if (!pos) return;
+  document.getElementById('resume-banner').style.display = 'none';
+  jumpTo(pos.idx);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+(function init() {
+  const pos = loadPos();
+  if (pos && pos.idx > 0) {
+    currentIdx = pos.idx;
+    const banner = document.getElementById('resume-banner');
+    const d = new Date(pos.ts);
+    const timeStr = d.toLocaleDateString('ar-MA') + ' ' + d.toLocaleTimeString('ar-MA', {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('resume-title').textContent = pos.title + ' — ' + pos.sub;
+    document.getElementById('resume-time').textContent = 'آخر جلسة: ' + timeStr;
+    banner.style.display = 'block';
+  }
+  buildPlaylist();
+  updateNowPlaying();
+  // Preload API silently
+  loadYTApi();
+})();
+</script>
+</body>
+</html>
