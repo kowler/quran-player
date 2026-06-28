@@ -114,7 +114,31 @@
   .btn-sm { width: 44px; height: 44px; font-size: 1.1rem; }
   .btn-lg { width: 60px; height: 60px; font-size: 1.5rem; background: #c9a84c; color: #0d1117; border-color: #c9a84c; }
   .btn-lg:active { background: #e8c876; }
-  .loop-badge { font-size: 0.72rem; color: #c9a84c; margin-top: 10px; opacity: 0.7; }
+  .loop-toggle {
+    margin-top: 10px;
+    display: inline-flex;
+    gap: 3px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 99px;
+    padding: 3px;
+  }
+  .loop-opt {
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    font-size: 0.72rem;
+    padding: 4px 12px;
+    border-radius: 99px;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .loop-opt.active {
+    background: #c9a84c;
+    color: #0d1117;
+    font-weight: 600;
+  }
 
   /* ── Resume banner ── */
   .saved-pos {
@@ -278,7 +302,10 @@
     <button class="btn btn-lg" id="play-btn" onclick="togglePlay()">▶</button>
     <button class="btn btn-sm" onclick="nextHizb()">⏭</button>
   </div>
-  <div class="loop-badge">🔁 دورة مستمرة تلقائياً</div>
+  <div class="loop-toggle">
+    <button class="loop-opt active" id="loop-on-btn" onclick="setLoopMode(true)">🔁 تكرار</button>
+    <button class="loop-opt" id="loop-off-btn" onclick="setLoopMode(false)">⏭ التالي</button>
+  </div>
 </div>
 
 <div class="playlist" id="playlist-container">
@@ -424,6 +451,7 @@ let apiReady   = false;
 let currentView = 'hizb'; // 'hizb' or 'athman'
 let expandedHizb = -1;
 let currentAthman = null; // {hizb, athman} when playing athman
+let loopMode = true; // true = loop current, false = move to next
 
 // ── Persist ───────────────────────────────────────────────────────────────────
 function savePos(idx) {
@@ -446,10 +474,11 @@ function switchView(view) {
   currentView = view;
   document.getElementById('tab-hizb').classList.toggle('active', view === 'hizb');
   document.getElementById('tab-athman').classList.toggle('active', view === 'athman');
-  document.getElementById('now-playing-card').style.display = view === 'hizb' ? '' : 'none';
+  // Now-playing card stays visible in both views
   document.getElementById('resume-banner').style.display = view === 'hizb' ? document.getElementById('resume-banner').style.display : 'none';
   document.getElementById('playlist-label').textContent = view === 'hizb' ? 'قائمة التشغيل — 60 حزباً' : 'الأثمان — اضغط على حزب لتوسيعه';
   buildPlaylist();
+  updateNowPlaying();
 }
 
 // ── Hizb Playlist ──────────────────────────────────────────────────────────────
@@ -509,7 +538,7 @@ function buildPlaylist() {
         if (isPlayingAthman) itemCls += ' playing';
         if (at.t === 'none') itemCls += ' disabled';
 
-        const sourceLabel = at.t === 'yt' ? 'يوتيوب' : 'غير متوفر';
+        const sourceLabel = at.t === 'yt' ? 'يوتيوب' : '—';
         const sourceCls = 'athman-source ' + at.t;
 
         const aDiv = document.createElement('div');
@@ -545,20 +574,27 @@ function toggleAthmanExpand(idx) {
   }
 }
 
+// ── Loop Mode ─────────────────────────────────────────────────────────────────
+function setLoopMode(loop) {
+  loopMode = loop;
+  document.getElementById('loop-on-btn').classList.toggle('active', loop);
+  document.getElementById('loop-off-btn').classList.toggle('active', !loop);
+  localStorage.setItem('quran_loop', loop ? '1' : '0');
+}
+
 // ── Athman Playback ──────────────────────────────────────────────────────────
 function playAthman(hizbIdx, athman) {
   currentAthman = { hizb: hizbIdx, athman: athman.a };
   currentIdx = hizbIdx; // sync now-playing display
 
   if (athman.t === 'yt') {
-    // Play via YouTube embed
     if (!apiReady) { loadYTApi(); return; }
     if (!player) { initPlayer(); return; }
     player.loadVideoById(athman.id);
     isPlaying = true;
     document.getElementById('play-btn').textContent = '⏸';
     updateNowPlaying();
-
+  }
 
   buildPlaylist();
 }
@@ -566,11 +602,20 @@ function playAthman(hizbIdx, athman) {
 // ── Now Playing ───────────────────────────────────────────────────────────────
 function updateNowPlaying() {
   const h = AHZAB[currentIdx];
-  document.getElementById('badge').textContent      = `الحزب ${h.n} / 60`;
-  document.getElementById('now-title').textContent  = h.title;
-  document.getElementById('now-fatiha').textContent = h.sub;
-  document.getElementById('prog-label').textContent = `${h.n} / 60`;
-  document.getElementById('prog-fill').style.width  = ((currentIdx + 1) / AHZAB.length * 100).toFixed(2) + '%';
+
+  if (currentView === 'athman' && currentAthman) {
+    document.getElementById('badge').textContent     = `الثمن ${currentAthman.athman} / 8`;
+    document.getElementById('now-title').textContent = `الحزب ${h.n} — الثمن ${currentAthman.athman}`;
+    document.getElementById('now-fatiha').textContent = h.sub;
+    document.getElementById('prog-label').textContent = `${currentAthman.athman} / 8`;
+    document.getElementById('prog-fill').style.width  = (currentAthman.athman / 8 * 100).toFixed(2) + '%';
+  } else {
+    document.getElementById('badge').textContent      = `الحزب ${h.n} / 60`;
+    document.getElementById('now-title').textContent  = h.title;
+    document.getElementById('now-fatiha').textContent = h.sub;
+    document.getElementById('prog-label').textContent = `${h.n} / 60`;
+    document.getElementById('prog-fill').style.width  = ((currentIdx + 1) / AHZAB.length * 100).toFixed(2) + '%';
+  }
   document.getElementById('play-btn').textContent   = isPlaying ? '⏸' : '▶';
   buildPlaylist();
   const active = document.getElementById('item-' + currentIdx);
@@ -597,20 +642,39 @@ function initPlayer() {
 
 function onStateChange(e) {
   if (e.data === YT.PlayerState.ENDED) {
-    // If in athman view, try next athman
     if (currentView === 'athman' && currentAthman) {
-      const hizbAthman = ATHMAN_DATA[currentAthman.hizb] ? ATHMAN_DATA[currentAthman.hizb].athman : [];
-      const next = hizbAthman.find(a => a.a === currentAthman.athman + 1 && a.t === 'yt');
-      if (next) {
-        playAthman(currentAthman.hizb, next);
-        return;
+      if (loopMode) {
+        // Loop: replay same athman
+        const hizbAthman = ATHMAN_DATA[currentAthman.hizb] ? ATHMAN_DATA[currentAthman.hizb].athman : [];
+        const cur = hizbAthman.find(a => a.a === currentAthman.athman);
+        if (cur) player.loadVideoById(cur.id);
+      } else {
+        // Next: try next athman in same hizb, then next hizb's first athman
+        const hizbAthman = ATHMAN_DATA[currentAthman.hizb] ? ATHMAN_DATA[currentAthman.hizb].athman : [];
+        const next = hizbAthman.find(a => a.a === currentAthman.athman + 1);
+        if (next) {
+          playAthman(currentAthman.hizb, next);
+        } else {
+          // Wrap to next hizb's first athman
+          const nextHizb = (currentAthman.hizb + 1) % AHZAB.length;
+          const nextHizbAthman = ATHMAN_DATA[nextHizb] ? ATHMAN_DATA[nextHizb].athman : [];
+          if (nextHizbAthman.length) {
+            expandedHizb = nextHizb;
+            playAthman(nextHizb, nextHizbAthman[0]);
+          }
+        }
       }
+      return;
     }
-    // Default: next hizb
-    savePos(currentIdx);
-    currentIdx = (currentIdx + 1) % AHZAB.length;
-    updateNowPlaying();
-    player.loadVideoById(AHZAB[currentIdx].id);
+    // Hizb view
+    if (loopMode) {
+      player.loadVideoById(AHZAB[currentIdx].id);
+    } else {
+      savePos(currentIdx);
+      currentIdx = (currentIdx + 1) % AHZAB.length;
+      updateNowPlaying();
+      player.loadVideoById(AHZAB[currentIdx].id);
+    }
     isPlaying = true;
     document.getElementById('play-btn').textContent = '⏸';
   }
@@ -632,8 +696,39 @@ function togglePlay() {
   if (isPlaying) { player.pauseVideo(); }
   else { player.playVideo(); }
 }
-function nextHizb() { currentIdx = (currentIdx + 1) % AHZAB.length; jumpTo(currentIdx); }
-function prevHizb() { currentIdx = (currentIdx - 1 + AHZAB.length) % AHZAB.length; jumpTo(currentIdx); }
+
+function nextTrack() {
+  if (currentView === 'athman' && currentAthman) {
+    const hizbAthman = ATHMAN_DATA[currentAthman.hizb] ? ATHMAN_DATA[currentAthman.hizb].athman : [];
+    const next = hizbAthman.find(a => a.a === currentAthman.athman + 1);
+    if (next) { playAthman(currentAthman.hizb, next); return; }
+    // Wrap to next hizb's first athman
+    const nextHizb = (currentAthman.hizb + 1) % AHZAB.length;
+    const nextHizbAthman = ATHMAN_DATA[nextHizb] ? ATHMAN_DATA[nextHizb].athman : [];
+    if (nextHizbAthman.length) { expandedHizb = nextHizb; playAthman(nextHizb, nextHizbAthman[0]); }
+  } else {
+    currentIdx = (currentIdx + 1) % AHZAB.length;
+    jumpTo(currentIdx);
+  }
+}
+
+function prevTrack() {
+  if (currentView === 'athman' && currentAthman) {
+    const hizbAthman = ATHMAN_DATA[currentAthman.hizb] ? ATHMAN_DATA[currentAthman.hizb].athman : [];
+    const prev = hizbAthman.find(a => a.a === currentAthman.athman - 1);
+    if (prev) { playAthman(currentAthman.hizb, prev); return; }
+    // Wrap to prev hizb's last athman
+    const prevHizb = (currentAthman.hizb - 1 + AHZAB.length) % AHZAB.length;
+    const prevHizbAthman = ATHMAN_DATA[prevHizb] ? ATHMAN_DATA[prevHizb].athman : [];
+    if (prevHizbAthman.length) { expandedHizb = prevHizb; playAthman(prevHizb, prevHizbAthman[prevHizbAthman.length - 1]); }
+  } else {
+    currentIdx = (currentIdx - 1 + AHZAB.length) % AHZAB.length;
+    jumpTo(currentIdx);
+  }
+}
+
+function nextHizb() { nextTrack(); }
+function prevHizb() { prevTrack(); }
 
 function jumpTo(idx) {
   currentIdx = idx;
@@ -658,6 +753,10 @@ function resumeFromSaved() {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 (function init() {
+  // Restore loop mode preference
+  const savedLoop = localStorage.getItem('quran_loop');
+  if (savedLoop !== null) setLoopMode(savedLoop === '1');
+
   const pos = loadPos();
   if (pos && pos.idx > 0) {
     currentIdx = pos.idx;
