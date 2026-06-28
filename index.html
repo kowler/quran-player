@@ -26,6 +26,33 @@
   .header h1 { font-size: 1.3rem; color: #c9a84c; letter-spacing: 0.03em; }
   .header p  { font-size: 0.85rem; color: #8b949e; margin-top: 4px; }
 
+  /* ── View Toggle ── */
+  .view-toggle {
+    display: flex;
+    gap: 4px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 99px;
+    padding: 3px;
+    margin-bottom: 20px;
+  }
+  .view-btn {
+    background: transparent;
+    border: none;
+    color: #8b949e;
+    font-size: 0.82rem;
+    padding: 6px 16px;
+    border-radius: 99px;
+    cursor: pointer;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .view-btn.active {
+    background: #c9a84c;
+    color: #0d1117;
+    font-weight: 600;
+  }
+
   /* ── Now Playing Card ── */
   .now-playing {
     background: linear-gradient(135deg, #1c2128 0%, #161b22 100%);
@@ -160,7 +187,63 @@
     white-space: nowrap; flex-shrink: 0;
   }
 
+  .expand-icon {
+    font-size: 0.7rem; color: #8b949e; flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+  .hizb-item.expanded .expand-icon { transform: rotate(90deg); }
+
   #yt-frame { position: fixed; top: -9999px; left: -9999px; width: 1px; height: 1px; }
+
+  /* ── Athman View ── */
+  .athman-list {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease;
+    width: 100%;
+    padding-right: 16px;
+  }
+  .athman-list.open { max-height: 500px; }
+
+  .athman-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    margin-bottom: 3px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    border: 1px solid transparent;
+  }
+  .athman-item:active, .athman-item:hover { background: #1c2128; }
+  .athman-item.active { background: #c9a84c15; border-color: #c9a84c33; }
+  .athman-item.active .athman-num { background: #c9a84c; color: #0d1117; }
+  .athman-item.playing .athman-num { background: #c9a84c; color: #0d1117; }
+
+  .athman-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #21262d;
+    color: #8b949e;
+    font-size: 0.68rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .athman-label { flex: 1; font-size: 0.82rem; color: #e6edf3; }
+  .athman-source {
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    border-radius: 99px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .athman-source.yt { background: #ff000022; color: #ff5555; }
+  .athman-source.tg { background: #0088cc22; color: #4cb3e0; }
+  .athman-source.none { background: #30363d; color: #484f58; }
+  .athman-item.disabled { opacity: 0.4; cursor: default; }
+  .athman-item.disabled:hover { background: transparent; }
 </style>
 </head>
 <body>
@@ -170,12 +253,17 @@
   <p>القارئ: محمد سايد &nbsp;·&nbsp; رواية ورش عن نافع</p>
 </div>
 
+<div class="view-toggle">
+  <button class="view-btn active" id="tab-hizb" onclick="switchView('hizb')">الأحزاب</button>
+  <button class="view-btn" id="tab-athman" onclick="switchView('athman')">الأثمان</button>
+</div>
+
 <div class="saved-pos" id="resume-banner" onclick="resumeFromSaved()">
   ↩ استئناف من آخر موضع: <strong id="resume-title"></strong>
   <span id="resume-time"></span>
 </div>
 
-<div class="now-playing">
+<div class="now-playing" id="now-playing-card">
   <div class="hizb-badge" id="badge">الحزب 1 / 60</div>
   <div class="hizb-title" id="now-title">الحزب 1</div>
   <div class="hizb-fatiha" id="now-fatiha">البقرة</div>
@@ -193,8 +281,8 @@
   <div class="loop-badge">🔁 دورة مستمرة تلقائياً</div>
 </div>
 
-<div class="playlist">
-  <div class="playlist-header">قائمة التشغيل — 60 حزباً</div>
+<div class="playlist" id="playlist-container">
+  <div class="playlist-header" id="playlist-label">قائمة التشغيل — 60 حزباً</div>
   <div id="playlist-items"></div>
 </div>
 
@@ -264,11 +352,79 @@ const AHZAB = [
   { n:60, id:"A4sCa7qxLLo", title:"الحزب 60", sub:"سبّح" },
 ];
 
+const ATHMAN_DATA = [
+  {h:1,athman:[{a:1,t:"yt",id:"RJ1T2OVITLU"},{a:2,t:"yt",id:"kcn0NfoEDSE"},{a:3,t:"yt",id:"P-PewZN7pw8"},{a:4,t:"yt",id:"L3qHlZ4RMrE"},{a:5,t:"yt",id:"z9SQEiyxe7Y"},{a:6,t:"yt",id:"uJGpHz1N_90"},{a:7,t:"yt",id:"vaUhGLH9A5Y"},{a:8,t:"tg",id:"35"}]},
+  {h:2,athman:[{a:1,t:"yt",id:"1QmFZTBKpXk"},{a:2,t:"yt",id:"SV8Wsu-VNxI"},{a:3,t:"yt",id:"JX8AjynELo8"},{a:4,t:"yt",id:"l4FAKkyaPOw"},{a:5,t:"yt",id:"ZZqJQVK2d0k"},{a:6,t:"yt",id:"QlO4Bjq3-Vk"},{a:7,t:"yt",id:"UmBFLJTwfi8"},{a:8,t:"yt",id:"MHQcT2NlNTI"}]},
+  {h:3,athman:[{a:1,t:"yt",id:"fKQqDNblMfU"},{a:2,t:"yt",id:"Tn9St4FFA4Y"},{a:3,t:"yt",id:"hNHFIsemg4s"},{a:4,t:"yt",id:"t4nez0t8iPY"},{a:5,t:"yt",id:"-tUdNnSkQ7A"},{a:6,t:"yt",id:"tpGKlvy6HRQ"},{a:7,t:"yt",id:"8OJy0QSk4ks"},{a:8,t:"yt",id:"TKvVXRMuRn4"}]},
+  {h:4,athman:[{a:1,t:"yt",id:"8KOQ-PxqA_k"},{a:2,t:"yt",id:"80tSqNs7iec"},{a:3,t:"yt",id:"KTHPaWIz-Jg"},{a:4,t:"yt",id:"NSCIJZLj23M"},{a:5,t:"yt",id:"iCmR67JcroY"},{a:6,t:"yt",id:"l57gUX9Ozg4"},{a:7,t:"yt",id:"yL-tpTeRsSQ"},{a:8,t:"yt",id:"DVPZZFUf5uA"}]},
+  {h:5,athman:[{a:1,t:"yt",id:"d9S94sIrL9U"},{a:2,t:"yt",id:"XcoqqjVSvSk"},{a:3,t:"yt",id:"JmzkuOeEKsk"},{a:4,t:"yt",id:"hFwtFIwNTjc"},{a:5,t:"yt",id:"2U57JbAQHh8"},{a:6,t:"yt",id:"kdPtQbTcPWI"},{a:7,t:"tg",id:"122"},{a:8,t:"tg",id:"124"}]},
+  {h:6,athman:[{a:1,t:"yt",id:"F6VnvpjGi-I"},{a:2,t:"yt",id:"JWS_5itJuDg"},{a:3,t:"yt",id:"PpNxoz8DkbU"},{a:4,t:"tg",id:"149"},{a:5,t:"none"},{a:6,t:"yt",id:"om8AJj0PKoc"},{a:7,t:"yt",id:"7917uuuwBus"},{a:8,t:"yt",id:"I591NYHDhvU"}]},
+  {h:7,athman:[{a:1,t:"yt",id:"CleMxOBOCrY"},{a:2,t:"yt",id:"Lds5vLhjUS4"},{a:3,t:"yt",id:"eFvLMIvIlyw"},{a:4,t:"yt",id:"wv6niYNG2kE"},{a:5,t:"yt",id:"QqsPbMhBaQQ"},{a:6,t:"yt",id:"dPw7q71op9Q"},{a:7,t:"yt",id:"N2gTYZHYRo0"},{a:8,t:"yt",id:"GPQwJFb6obM"}]},
+  {h:8,athman:[{a:1,t:"yt",id:"IEmWT5swhN8"},{a:2,t:"yt",id:"5JT8eEU1O6Q"},{a:3,t:"yt",id:"v_FOeYIYTXY"},{a:4,t:"yt",id:"wuvjSWcExOo"},{a:5,t:"yt",id:"ixrZD9tWt-8"},{a:6,t:"yt",id:"z8OWea9-ucQ"},{a:7,t:"yt",id:"XOPgNq6XKQ0"},{a:8,t:"yt",id:"fs2x5fvzzvc"}]},
+  {h:9,athman:[{a:1,t:"yt",id:"4CFxjve_tVE"},{a:2,t:"yt",id:"Wn3ewlFFmWY"},{a:3,t:"yt",id:"He8y6hcsMcE"},{a:4,t:"yt",id:"tIC1xpkfp1o"},{a:5,t:"yt",id:"0BPF-Rojnz4"},{a:6,t:"yt",id:"oOY6dbyT7kw"},{a:7,t:"yt",id:"byCj2q-QvVU"},{a:8,t:"yt",id:"Yd3-x-ly4b8"}]},
+  {h:10,athman:[{a:1,t:"yt",id:"5-Z3z4DMFG8"},{a:2,t:"yt",id:"JtQmIzrzd_A"},{a:3,t:"yt",id:"ruxL3sq9cCo"},{a:4,t:"yt",id:"uFijSqMgxg4"},{a:5,t:"tg",id:"226"},{a:6,t:"yt",id:"hiXkmuQyn90"},{a:7,t:"yt",id:"4y6YguEf44w"},{a:8,t:"yt",id:"5ZrMWX-cDGk"}]},
+  {h:11,athman:[{a:1,t:"yt",id:"tZtqoXy5aYI"},{a:2,t:"yt",id:"eKqjswJZsEA"},{a:3,t:"yt",id:"6JkrUzqtaBQ"},{a:4,t:"yt",id:"wCSPxHEWaxk"},{a:5,t:"yt",id:"kdY_s-4XhXM"},{a:6,t:"yt",id:"-WeiceD5Fw0"},{a:7,t:"yt",id:"nkzuJFWiRDY"},{a:8,t:"yt",id:"nvDF4-DpXTo"}]},
+  {h:12,athman:[{a:1,t:"yt",id:"z9eJSwjBDwY"},{a:2,t:"yt",id:"52lMM-abwG8"},{a:3,t:"yt",id:"f_4e4_RUFGE"},{a:4,t:"yt",id:"wq6swHpKVHo"},{a:5,t:"yt",id:"zYFqJE8WCho"},{a:6,t:"yt",id:"IdyAfWLxQJU"},{a:7,t:"yt",id:"9ExWbSCN3Vc"},{a:8,t:"tg",id:"265"}]},
+  {h:13,athman:[{a:1,t:"yt",id:"obghXTZtuqs"},{a:2,t:"yt",id:"4gD2kDTWHwM"},{a:3,t:"yt",id:"UPYa9StfJmo"},{a:4,t:"yt",id:"P7709zdaXGM"},{a:5,t:"none"},{a:6,t:"yt",id:"s33D6Gfo6o0"},{a:7,t:"none"},{a:8,t:"yt",id:"IvAf9tcTm5Y"}]},
+  {h:14,athman:[{a:1,t:"none"},{a:2,t:"yt",id:"HJwBN9QLlUY"},{a:3,t:"yt",id:"NfzS4XzFtNY"},{a:4,t:"yt",id:"TQWy7j3e8UI"},{a:5,t:"tg",id:"271"},{a:6,t:"yt",id:"FY7Aj2KFY6E"},{a:7,t:"tg",id:"301"},{a:8,t:"tg",id:"303"}]},
+  {h:15,athman:[{a:1,t:"yt",id:"fW04vdf_vUs"},{a:2,t:"tg",id:"309"},{a:3,t:"tg",id:"311"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"yt",id:"mFrVDHSBQNA"}]},
+  {h:16,athman:[{a:1,t:"yt",id:"ILP-CtxDwpw"},{a:2,t:"yt",id:"0vyiKrvEPPE"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"yt",id:"hgBxQRVsc-A"},{a:6,t:"none"},{a:7,t:"yt",id:"UB9T2xWLjHk"},{a:8,t:"yt",id:"dN5_tan5TsI"}]},
+  {h:17,athman:[{a:1,t:"yt",id:"cVyIPCx_RtU"},{a:2,t:"tg",id:"346"},{a:3,t:"yt",id:"cRzOGxpTdTw"},{a:4,t:"yt",id:"s8KVPQ5rquY"},{a:5,t:"yt",id:"WUpulmwLUiw"},{a:6,t:"yt",id:"3C9u5ARBmno"},{a:7,t:"yt",id:"qfauloMLPY8"},{a:8,t:"none"}]},
+  {h:18,athman:[{a:1,t:"yt",id:"qupKIcjsTCs"},{a:2,t:"yt",id:"_HzYLpPE9fE"},{a:3,t:"yt",id:"RX2vnNehBwQ"},{a:4,t:"yt",id:"NHbuUD6FDEg"},{a:5,t:"yt",id:"zMI_OEr0Lqo"},{a:6,t:"yt",id:"pmR3ZErIKnw"},{a:7,t:"yt",id:"1GqsCR0x5Ow"},{a:8,t:"yt",id:"DZuFzCydDTo"}]},
+  {h:19,athman:[{a:1,t:"tg",id:"400"},{a:2,t:"yt",id:"_SagiSGvLBM"},{a:3,t:"yt",id:"5f0ij-s79ds"},{a:4,t:"yt",id:"L8YpgAV1xow"},{a:5,t:"yt",id:"yk0WGqv5E-4"},{a:6,t:"tg",id:"410"},{a:7,t:"yt",id:"54AX3krS3jo"},{a:8,t:"none"}]},
+  {h:20,athman:[{a:1,t:"yt",id:"rmQHfl0H5Ts"},{a:2,t:"yt",id:"AtUhoMDsB2o"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"yt",id:"8zWy6bwAOHo"},{a:6,t:"none"},{a:7,t:"yt",id:"PMBAzfyeqeo"},{a:8,t:"none"}]},
+  {h:21,athman:[{a:1,t:"none"},{a:2,t:"yt",id:"K01BdOx-dd4"},{a:3,t:"tg",id:"944"},{a:4,t:"tg",id:"945"},{a:5,t:"tg",id:"946"},{a:6,t:"tg",id:"947"},{a:7,t:"tg",id:"948"},{a:8,t:"tg",id:"949"}]},
+  {h:22,athman:[{a:1,t:"yt",id:"auVYqBQNqEQ"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:23,athman:[{a:1,t:"yt",id:"se7WY9nymHA"},{a:2,t:"none"},{a:3,t:"yt",id:"Fu-39V6DtZQ"},{a:4,t:"tg",id:"951"},{a:5,t:"yt",id:"UDKugG-spY8"},{a:6,t:"yt",id:"5QIvLtv3z7U"},{a:7,t:"tg",id:"966"},{a:8,t:"tg",id:"967"}]},
+  {h:24,athman:[{a:1,t:"tg",id:"969"},{a:2,t:"yt",id:"PV1Ndq5jz8Q"},{a:3,t:"none"},{a:4,t:"yt",id:"Vdb0P1Skw_M"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:25,athman:[{a:1,t:"yt",id:"i0uhqwHkx5M"},{a:2,t:"yt",id:"y8UtYHRB-PU"},{a:3,t:"yt",id:"xwN-cSWd7E4"},{a:4,t:"none"},{a:5,t:"yt",id:"WhRSDiebH5Q"},{a:6,t:"tg",id:"971"},{a:7,t:"tg",id:"984"},{a:8,t:"tg",id:"985"}]},
+  {h:26,athman:[{a:1,t:"tg",id:"987"},{a:2,t:"tg",id:"988"},{a:3,t:"tg",id:"989"},{a:4,t:"tg",id:"990"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:27,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"tg",id:"991"}]},
+  {h:28,athman:[{a:1,t:"tg",id:"1005"},{a:2,t:"tg",id:"1006"},{a:3,t:"tg",id:"1007"},{a:4,t:"tg",id:"1008"},{a:5,t:"tg",id:"1009"},{a:6,t:"tg",id:"1010"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:29,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:30,athman:[{a:1,t:"none"},{a:2,t:"yt",id:"CF9zS-2-Be8"},{a:3,t:"tg",id:"1025"},{a:4,t:"tg",id:"1026"},{a:5,t:"tg",id:"1027"},{a:6,t:"tg",id:"1028"},{a:7,t:"tg",id:"1029"},{a:8,t:"tg",id:"1030"}]},
+  {h:31,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:32,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"tg",id:"1031"},{a:4,t:"tg",id:"1044"},{a:5,t:"tg",id:"1045"},{a:6,t:"tg",id:"1046"},{a:7,t:"tg",id:"1047"},{a:8,t:"tg",id:"1048"}]},
+  {h:33,athman:[{a:1,t:"tg",id:"1050"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:34,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"tg",id:"1051"},{a:6,t:"tg",id:"1064"},{a:7,t:"tg",id:"1065"},{a:8,t:"tg",id:"1066"}]},
+  {h:35,athman:[{a:1,t:"tg",id:"1068"},{a:2,t:"tg",id:"1069"},{a:3,t:"tg",id:"1070"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:36,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"tg",id:"1071"},{a:8,t:"tg",id:"1084"}]},
+  {h:37,athman:[{a:1,t:"yt",id:"Q0bhn9p3xd0"},{a:2,t:"yt",id:"gkF8xpWoiQI"},{a:3,t:"yt",id:"VjvAVrbIKdQ"},{a:4,t:"yt",id:"Rh7kUpJZzkc"},{a:5,t:"yt",id:"IMEDNjxLhks"},{a:6,t:"yt",id:"7oHcugXldYY"},{a:7,t:"yt",id:"inX616hKxGc"},{a:8,t:"yt",id:"dtFGas-Nt0Y"}]},
+  {h:38,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:39,athman:[{a:1,t:"tg",id:"1104"},{a:2,t:"tg",id:"1105"},{a:3,t:"tg",id:"1106"},{a:4,t:"tg",id:"1107"},{a:5,t:"tg",id:"1108"},{a:6,t:"tg",id:"1109"},{a:7,t:"tg",id:"1110"},{a:8,t:"none"}]},
+  {h:40,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:41,athman:[{a:1,t:"none"},{a:2,t:"tg",id:"1111"},{a:3,t:"tg",id:"1124"},{a:4,t:"tg",id:"1125"},{a:5,t:"tg",id:"1126"},{a:6,t:"tg",id:"1127"},{a:7,t:"tg",id:"1128"},{a:8,t:"tg",id:"1129"}]},
+  {h:42,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:43,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"tg",id:"1131"},{a:5,t:"tg",id:"1165"},{a:6,t:"tg",id:"1166"},{a:7,t:"tg",id:"1168"},{a:8,t:"tg",id:"1169"}]},
+  {h:44,athman:[{a:1,t:"tg",id:"1171"},{a:2,t:"tg",id:"1172"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:45,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"tg",id:"1173"},{a:7,t:"tg",id:"1186"},{a:8,t:"tg",id:"1187"}]},
+  {h:46,athman:[{a:1,t:"tg",id:"1189"},{a:2,t:"tg",id:"1190"},{a:3,t:"tg",id:"1191"},{a:4,t:"tg",id:"1192"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:47,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"tg",id:"1193"}]},
+  {h:48,athman:[{a:1,t:"tg",id:"1210"},{a:2,t:"tg",id:"1211"},{a:3,t:"tg",id:"1212"},{a:4,t:"tg",id:"1213"},{a:5,t:"tg",id:"1214"},{a:6,t:"tg",id:"1215"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:49,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:50,athman:[{a:1,t:"none"},{a:2,t:"tg",id:"1237"},{a:3,t:"tg",id:"1238"},{a:4,t:"tg",id:"1239"},{a:5,t:"tg",id:"1242"},{a:6,t:"tg",id:"1244"},{a:7,t:"tg",id:"1245"},{a:8,t:"tg",id:"1246"}]},
+  {h:51,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:52,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"tg",id:"1251"},{a:4,t:"tg",id:"1264"},{a:5,t:"tg",id:"1265"},{a:6,t:"tg",id:"1266"},{a:7,t:"tg",id:"1267"},{a:8,t:"tg",id:"1268"}]},
+  {h:53,athman:[{a:1,t:"tg",id:"1275"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:54,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"tg",id:"1276"},{a:6,t:"tg",id:"1289"},{a:7,t:"tg",id:"1290"},{a:8,t:"tg",id:"1291"}]},
+  {h:55,athman:[{a:1,t:"tg",id:"1296"},{a:2,t:"tg",id:"1297"},{a:3,t:"tg",id:"1298"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:56,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"tg",id:"1299"},{a:8,t:"tg",id:"1312"}]},
+  {h:57,athman:[{a:1,t:"tg",id:"1317"},{a:2,t:"tg",id:"1318"},{a:3,t:"tg",id:"1319"},{a:4,t:"tg",id:"1320"},{a:5,t:"tg",id:"1321"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:58,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]},
+  {h:59,athman:[{a:1,t:"tg",id:"1341"},{a:2,t:"tg",id:"1342"},{a:3,t:"tg",id:"1343"},{a:4,t:"tg",id:"1344"},{a:5,t:"tg",id:"1345"},{a:6,t:"tg",id:"1346"},{a:7,t:"tg",id:"1347"},{a:8,t:"none"}]},
+  {h:60,athman:[{a:1,t:"none"},{a:2,t:"none"},{a:3,t:"none"},{a:4,t:"none"},{a:5,t:"none"},{a:6,t:"none"},{a:7,t:"none"},{a:8,t:"none"}]}
+];
+
+const TG_CHANNEL = "Koranwa";
+
 // ── State ─────────────────────────────────────────────────────────────────────
 let currentIdx = 0;
 let isPlaying  = false;
 let player     = null;
 let apiReady   = false;
+let currentView = 'hizb'; // 'hizb' or 'athman'
+let expandedHizb = -1;
+let currentAthman = null; // {hizb, athman} when playing athman
 
 // ── Persist ───────────────────────────────────────────────────────────────────
 function savePos(idx) {
@@ -286,14 +442,25 @@ function getLastHeardIdx() {
   return h.length ? Math.max(...h) : -1;
 }
 
-// ── Playlist ──────────────────────────────────────────────────────────────────
+// ── View Switching ────────────────────────────────────────────────────────────
+function switchView(view) {
+  currentView = view;
+  document.getElementById('tab-hizb').classList.toggle('active', view === 'hizb');
+  document.getElementById('tab-athman').classList.toggle('active', view === 'athman');
+  document.getElementById('now-playing-card').style.display = view === 'hizb' ? '' : 'none';
+  document.getElementById('resume-banner').style.display = view === 'hizb' ? document.getElementById('resume-banner').style.display : 'none';
+  document.getElementById('playlist-label').textContent = view === 'hizb' ? 'قائمة التشغيل — 60 حزباً' : 'الأثمان — اضغط على حزب لتوسيعه';
+  buildPlaylist();
+}
+
+// ── Hizb Playlist ──────────────────────────────────────────────────────────────
 function buildPlaylist() {
   const container  = document.getElementById('playlist-items');
   container.innerHTML = '';
   const lastHeard  = getLastHeardIdx();
 
   AHZAB.forEach((h, i) => {
-    const isActive  = i === currentIdx;
+    const isActive  = i === currentIdx && currentView === 'hizb';
     const isDone    = !isActive && i < lastHeard;
     const isLastH   = !isActive && i === lastHeard;
 
@@ -302,24 +469,102 @@ function buildPlaylist() {
     else if (isDone)  cls += ' done';
     else if (isLastH) cls += ' last-heard';
 
+    if (currentView === 'athman' && expandedHizb === i) cls += ' expanded';
+
     const numContent = (isDone || isLastH) ? '✓' : h.n;
     let badge = '';
     if (isActive) badge = '<div class="eq-icon">♪</div>';
     else if (isLastH) badge = '<span class="last-heard-badge">آخر استماع</span>';
 
+    const expandArrow = currentView === 'athman' ? '<div class="expand-icon">▶</div>' : '';
+
     const div = document.createElement('div');
     div.className = cls;
     div.id = 'item-' + i;
-    div.onclick = () => jumpTo(i);
+    div.onclick = () => {
+      if (currentView === 'hizb') {
+        jumpTo(i);
+      } else {
+        toggleAthmanExpand(i);
+      }
+    };
     div.innerHTML = `
       <div class="hizb-num">${numContent}</div>
       <div class="hizb-info">
         <div class="hizb-name">${h.title}</div>
         <div class="hizb-sub">${h.sub}</div>
       </div>
-      ${badge}`;
+      ${badge}${expandArrow}`;
     container.appendChild(div);
+
+    // Athman sub-list
+    if (currentView === 'athman') {
+      const athmanDiv = document.createElement('div');
+      athmanDiv.className = 'athman-list' + (expandedHizb === i ? ' open' : '');
+      athmanDiv.id = 'athman-' + i;
+
+      const hizbAthman = ATHMAN_DATA[i] ? ATHMAN_DATA[i].athman : [];
+      hizbAthman.forEach(at => {
+        const isPlayingAthman = currentAthman && currentAthman.hizb === i && currentAthman.athman === at.a;
+        let itemCls = 'athman-item';
+        if (isPlayingAthman) itemCls += ' playing';
+        if (at.t === 'none') itemCls += ' disabled';
+
+        const sourceLabel = at.t === 'yt' ? 'يوتيوب' : at.t === 'tg' ? 'تيليجرام' : 'غير متوفر';
+        const sourceCls = 'athman-source ' + at.t;
+
+        const aDiv = document.createElement('div');
+        aDiv.className = itemCls;
+        aDiv.onclick = (e) => {
+          e.stopPropagation();
+          if (at.t === 'none') return;
+          playAthman(i, at);
+        };
+        aDiv.innerHTML = `
+          <div class="athman-num">${at.a}</div>
+          <div class="athman-label">الثمن ${at.a}</div>
+          <div class="${sourceCls}">${sourceLabel}</div>
+        `;
+        athmanDiv.appendChild(aDiv);
+      });
+
+      container.appendChild(athmanDiv);
+    }
   });
+}
+
+function toggleAthmanExpand(idx) {
+  if (expandedHizb === idx) {
+    expandedHizb = -1;
+  } else {
+    expandedHizb = idx;
+  }
+  buildPlaylist();
+  if (expandedHizb === idx) {
+    const el = document.getElementById('athman-' + idx);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+// ── Athman Playback ──────────────────────────────────────────────────────────
+function playAthman(hizbIdx, athman) {
+  currentAthman = { hizb: hizbIdx, athman: athman.a };
+  currentIdx = hizbIdx; // sync now-playing display
+
+  if (athman.t === 'yt') {
+    // Play via YouTube embed
+    if (!apiReady) { loadYTApi(); return; }
+    if (!player) { initPlayer(); return; }
+    player.loadVideoById(athman.id);
+    isPlaying = true;
+    document.getElementById('play-btn').textContent = '⏸';
+    updateNowPlaying();
+  } else if (athman.t === 'tg') {
+    // Open Telegram message
+    window.open(`https://t.me/${TG_CHANNEL}/${athman.id}`, '_blank');
+  }
+
+  buildPlaylist();
 }
 
 // ── Now Playing ───────────────────────────────────────────────────────────────
@@ -356,6 +601,16 @@ function initPlayer() {
 
 function onStateChange(e) {
   if (e.data === YT.PlayerState.ENDED) {
+    // If in athman view, try next athman
+    if (currentView === 'athman' && currentAthman) {
+      const hizbAthman = ATHMAN_DATA[currentAthman.hizb] ? ATHMAN_DATA[currentAthman.hizb].athman : [];
+      const next = hizbAthman.find(a => a.a === currentAthman.athman + 1 && a.t === 'yt');
+      if (next) {
+        playAthman(currentAthman.hizb, next);
+        return;
+      }
+    }
+    // Default: next hizb
     savePos(currentIdx);
     currentIdx = (currentIdx + 1) % AHZAB.length;
     updateNowPlaying();
@@ -386,6 +641,7 @@ function prevHizb() { currentIdx = (currentIdx - 1 + AHZAB.length) % AHZAB.lengt
 
 function jumpTo(idx) {
   currentIdx = idx;
+  currentAthman = null;
   updateNowPlaying();
   if (player && apiReady) {
     player.loadVideoById(AHZAB[idx].id);
